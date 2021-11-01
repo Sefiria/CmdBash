@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace CmdBash
@@ -12,7 +10,7 @@ namespace CmdBash
     {
         Bitmap img, img_header;
         Graphics g, g_header;
-        Font Font;
+        new Font Font;
         Size CharSize = new Size(7, 15);
         int Offset = 4;
         string CR = Environment.NewLine;
@@ -29,9 +27,6 @@ namespace CmdBash
             g_header.TextRenderingHint = System.Drawing.Text.TextRenderingHint.SingleBitPerPixelGridFit;
             Font = new Font("Lucida Console", 9F, FontStyle.Regular);
             MaxLineLength = (480 - Offset * 2) / CharSize.Width;
-
-            string userName = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
-            Content.Add($"ƒ2{userName} ƒ4MINGW64 ƒ5~{CR}$ ");
         }
 
         private void Draw(object sender, EventArgs e)
@@ -80,6 +75,15 @@ namespace CmdBash
                 }
             }
 
+            if (TimerTinkCursor.ElapsedMilliseconds < 500)
+            {
+                g.DrawLine(Pens.White,
+                            CursorObj.X * CharSize.Width,
+                            CursorObj.Y * CharSize.Height,
+                            CursorObj.X * CharSize.Width,
+                            (CursorObj.Y + 1) * CharSize.Height - 1);
+            }
+
             Pen pen = new Pen(Color.FromArgb(80, 80, 80), 2F);
             g.DrawLine(pen, 0, 0, 0, Render.Height);
             g.DrawLine(pen, 0, Render.Height, Render.Width, Render.Height);
@@ -92,17 +96,17 @@ namespace CmdBash
         {
             var hhh = (Header.Height - CharSize.Height) / 2F;
             g_header.DrawEllipse(Pens.Red, hhh, hhh, LogoSize, LogoSize);
-            g_header.DrawString($"MINGW64:{Path}", new Font(Font.FontFamily, 10F), Brushes.White, hhh * 2 + LogoSize, hhh + 2);
+            g_header.DrawString($"MINGW64:{HeaderPath}", new Font(Font.FontFamily, 10F), Brushes.White, hhh * 2 + LogoSize, hhh + 2);
 
             Pen pen = new Pen(Color.FromArgb(80, 80, 80), 2F);
             g_header.DrawLine(pen, 0, 0, 0, Render.Height);
             g_header.DrawLine(pen, 0, 0, Render.Width, 0);
             g_header.DrawLine(pen, Render.Width, 0, Render.Width, Render.Height);
 
-            g_header.FillRectangle(new SolidBrush(Color.Gray), btXRect);
-            g_header.DrawRectangle(Pens.Red, btXRect);
-            g_header.DrawLine(Pens.Red, btXRect.X, btXRect.Y, btXRect.X + btXRect.Width, btXRect.Y + btXRect.Height);
-            g_header.DrawLine(Pens.Red, btXRect.X + btXRect.Width, btXRect.Y, btXRect.X, btXRect.Y + btXRect.Height);
+            g_header.FillRectangle(new SolidBrush(IsMouseDownBtX ? Color.Yellow : (IsMouseOverBtX ? Color.LightGray : Color.Gray)), btheaderXRect);
+            g_header.DrawRectangle(Pens.Red, btheaderXRect);
+            g_header.DrawLine(Pens.Red, btheaderXRect.X, btheaderXRect.Y, btheaderXRect.X + btheaderXRect.Width, btheaderXRect.Y + btheaderXRect.Height);
+            g_header.DrawLine(Pens.Red, btheaderXRect.X + btheaderXRect.Width, btheaderXRect.Y, btheaderXRect.X, btheaderXRect.Y + btheaderXRect.Height);
 
             Header.Image = img_header;
         }

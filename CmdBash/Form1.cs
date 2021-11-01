@@ -27,7 +27,10 @@ namespace CmdBash
 
             TimerUpdate.Tick += Update;
             TimerDraw.Tick += Draw;
-            MouseDown += OnMouseDown;
+            Header.MouseDown += OnHeaderMouseDown;
+            Header.MouseUp += OnHeaderMouseUp;
+            Header.MouseMove += OnHeaderMouseMove;
+            KeyDown += Form_KeyDown;
         }
     }
 }
