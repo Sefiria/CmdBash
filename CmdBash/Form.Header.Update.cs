@@ -22,7 +22,7 @@ namespace CmdBash
             pathNodes[0] = pathNodes[0].Replace(":", "").ToLower();
             pathNodes.ForEach(node => HeaderPath += node + "/");
 
-            var sz = (Header.Height - CharSize.Height) / 2;
+            var sz = (int)(Header.Height - CharSize.Height) / 2;
             btheaderXRect = new Rectangle(Header.Width - sz - 16, sz, 16, 16);
         }
 

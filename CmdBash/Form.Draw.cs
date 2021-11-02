@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Windows.Forms;
+using System.Text.RegularExpressions;
 
 namespace CmdBash
 {
@@ -11,11 +11,11 @@ namespace CmdBash
         Bitmap img, img_header;
         Graphics g, g_header;
         new Font Font;
-        Size CharSize = new Size(7, 15);
+        SizeF CharSize = new SizeF(7.45F, 15);
         int Offset = 4;
         string CR = Environment.NewLine;
         int LogoSize = 16;
-        int MaxLineLength;
+        float MaxLineLength;
 
         private void DrawInit()
         {
@@ -43,20 +43,45 @@ namespace CmdBash
                 treat.Clear();
                 while(GetUnformattedLine(l).Length > MaxLineLength)
                 {
-                    treat.Add(string.Concat(l.Take(MaxLineLength)));
-                    l = string.Concat(l.Skip(MaxLineLength));
+                    treat.Add(string.Concat(l.Take((int)MaxLineLength)));
+                    l = string.Concat(l.Skip((int)MaxLineLength));
                 }
                 treat.Add(l);
                 lines.AddRange(treat);
             }
 
             SolidBrush b = new SolidBrush(Color.White);
-            int x;
+            float x;
             for(int l=0; l<lines.Count; l++)
             {
                 string line = lines[l];
+
+                string[] words = Regex.Split(line, $@"(?<={TokenFormat}\d| )");
+
+                x = 0F;
                 b.Color = Color.White;
-                int charCount = line.Length;
+                foreach(string word in words)
+                {
+                    if (word.Length == 0)
+                        continue;
+                    if (word[0] == TokenFormat)
+                    {
+                        b.Color = GetColorFromFormat(word[1]);
+                    }
+                    else
+                    {
+                        if (word.StartsWith("--"))
+                        {
+                            b.Color = GetColor(7);
+                        }
+
+                        g.DrawString(word, Font, b, Offset + x, Offset + l * CharSize.Height);
+                        x += CharSize.Width * word.Length;
+                        b.Color = Color.White;
+                    }
+                }
+
+                /*int charCount = line.Length;
                 x = 0;
                 for(int c=0; c<charCount; c++)
                 {
@@ -72,7 +97,7 @@ namespace CmdBash
                     {
                         b.Color = GetColorFromFormat(line[++c]);
                     }
-                }
+                }*/
             }
 
             if (TimerTinkCursor.ElapsedMilliseconds < 500)
