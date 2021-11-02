@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using System.Reflection;
 
 namespace CmdBash
 {
@@ -15,11 +16,19 @@ namespace CmdBash
         int HistoryCur = -1;
         CursorObj CursorObj;
         Stopwatch TimerTinkCursor = new Stopwatch();
+        List<ICommand> Commands;
 
 
         private void UpdateInit()
         {
             HeaderUpdateInit();
+
+            var type = typeof(ICommand);
+            Commands = AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(s => s.GetTypes())
+                .Where(p => type.IsAssignableFrom(p) && !p.IsInterface)
+                .Select(x => (ICommand)Activator.CreateInstance(x))
+                .ToList();
 
             string userName = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
             Content.Add($"ƒ2{userName} ƒ4MINGW64 ƒ5~");
@@ -40,6 +49,12 @@ namespace CmdBash
 
             if (TimerTinkCursor.ElapsedMilliseconds >= 1000)
                 TimerTinkCursor.Restart();
+        }
+
+        private void CursorObjNextLine(int nblines = 1)
+        {
+            CursorObj.Y += nblines;
+            CursorObj.X = 2;
         }
 
         private string GetUnformattedLine(string line)
@@ -103,7 +118,6 @@ namespace CmdBash
                 return;
             }
 
-            bool execute = false;
 
             if ((e.KeyValue >= 65 && e.KeyValue <= 90)
                 || (e.KeyValue >= 96 && e.KeyValue <= 105)
@@ -145,10 +159,9 @@ namespace CmdBash
                             else
                                 HistoryCur++;
                             History.Add(Content[CursorObj.Y]);
+                            int nblines = Execute(Content[Content.Count - 1]) + 1;
                             Content.Add("$ ");
-                            CursorObj.X = 2;
-                            CursorObj.Y++;
-                            execute = true;
+                            CursorObjNextLine(nblines);
                         }
                         break;
 
@@ -159,15 +172,10 @@ namespace CmdBash
                 }
 
                 TimerTinkCursor.Restart();
-
-                if(execute)
-                {
-                    Execute(Content[Content.Count - 2]);
-                }
             }
         }
 
-        private void Execute(string command)
+        private int Execute(string command)
         {
             command = string.Concat(command.Skip(2));
 
@@ -194,14 +202,37 @@ namespace CmdBash
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(cmd)) return;
-            if (string.IsNullOrWhiteSpace(subcmd)) return;
+            if (cmd.CompareTo("help") == 0 || cmd.CompareTo("?") == 0)
+            {
+                return ShowHelp();
+            }
 
-            ExecuteCommand(cmd, subcmd, args);
+            if (string.IsNullOrWhiteSpace(cmd)) return 0;
+            if (string.IsNullOrWhiteSpace(subcmd)) return 0;
+
+            return ExecuteCommand(cmd, subcmd, args);
         }
 
-        private void ExecuteCommand(string cmd, string subcmd, Dictionary<string, string> args)
+        private int ShowHelp()
         {
+            foreach(ICommand command in Commands)
+                Content.Add($"\t- {command.CommandName}");
+            return Commands.Count;
+        }
+
+        private int ExecuteCommand(string cmd, string subcmd, Dictionary<string, string> args)
+        {
+            foreach (ICommand command in Commands)
+            {
+                if(command.CommandName.CompareTo(cmd) == 0 && command.SubCommands.ContainsKey(subcmd))
+                {
+                    List<string> output = command.SubCommands[subcmd].Invoke(args);
+                    Content.AddRange(output);
+                    return output.Count;
+                }
+            }
+
+            return 0;
         }
     }
 }
