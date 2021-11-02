@@ -78,10 +78,10 @@ namespace CmdBash
             if (TimerTinkCursor.ElapsedMilliseconds < 500)
             {
                 g.DrawLine(Pens.White,
-                            CursorObj.X * CharSize.Width,
-                            CursorObj.Y * CharSize.Height,
-                            CursorObj.X * CharSize.Width,
-                            (CursorObj.Y + 1) * CharSize.Height - 1);
+                            Offset + CursorObj.X * CharSize.Width + 1,
+                            Offset / 2 + CursorObj.Y * CharSize.Height,
+                            Offset + CursorObj.X * CharSize.Width + 1,
+                            (CursorObj.Y + 1) * CharSize.Height);
             }
 
             Pen pen = new Pen(Color.FromArgb(80, 80, 80), 2F);

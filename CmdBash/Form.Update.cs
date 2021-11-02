@@ -23,7 +23,7 @@ namespace CmdBash
             Content.Add($"ƒ2{userName} ƒ4MINGW64 ƒ5~");
             Content.Add($"$ ");
 
-            CursorObj = new CursorObj(Content[Content.Count - 1].Length + 1, Content.Count - 1);
+            CursorObj = new CursorObj(Content[Content.Count - 1].Length, Content.Count - 1);
             TimerTinkCursor.Start();
         }
 
@@ -101,18 +101,18 @@ namespace CmdBash
                 switch(e.KeyValue)
                 {
                     case 8:
-                        if (Content[Content.Count - 1].CompareTo("$ ") != 0)
+                        if (CursorObj.X > 2)
                         {
-                            Content[Content.Count - 1] = Content[Content.Count - 1].Remove(Content[Content.Count - 1].Length - 1);
+                            Content[Content.Count - 1] = Content[Content.Count - 1].Remove(CursorObj.X - 1, 1);
                             CursorObj.X--;
                         }
                         break;
 
                     case 13:
-                        if (Content[Content.Count - 1].CompareTo("$ ") != 0)
+                        if (CursorObj.X > 2)
                         {
                             Content.Add("$ ");
-                            CursorObj.X = 3;
+                            CursorObj.X = 2;
                             CursorObj.Y++;
                             execute = true;
                         }
