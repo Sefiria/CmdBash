@@ -12,6 +12,6 @@ namespace CmdBash
             result.Inflate(width, height);
             return result;
         }
-        public static string[] Split(this string text, string separator) => text.Split(new string[] { separator }, StringSplitOptions.None);
+        public static string[] Split(this string text, string separator, bool removeEmpty = false) => text.Split(new string[] { separator }, removeEmpty ? StringSplitOptions.RemoveEmptyEntries : StringSplitOptions.None);
     }
 }

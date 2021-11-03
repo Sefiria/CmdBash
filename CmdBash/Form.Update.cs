@@ -16,22 +16,24 @@ namespace CmdBash
         int HistoryCur = -1;
         CursorObj CursorObj;
         Stopwatch TimerTinkCursor = new Stopwatch();
-        List<ICommand> Commands;
+        string UserName;
 
 
         private void UpdateInit()
         {
             HeaderUpdateInit();
 
+            Variables.Location = "~";
+
             var type = typeof(ICommand);
-            Commands = AppDomain.CurrentDomain.GetAssemblies()
+            Variables.Commands = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(s => s.GetTypes())
                 .Where(p => type.IsAssignableFrom(p) && !p.IsInterface)
                 .Select(x => (ICommand)Activator.CreateInstance(x))
                 .ToList();
 
-            string userName = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
-            Content.Add($"ƒ2{userName} ƒ4MINGW64 ƒ5~");
+            UserName = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
+            Content.Add($"ƒ2{UserName} ƒ4MINGW64 ƒ5{Variables.LocationFormatted}");
             Content.Add($"$ ");
 
             CursorObj = new CursorObj(Content[Content.Count - 1].Length, Content.Count - 1);
@@ -95,7 +97,7 @@ namespace CmdBash
 
         private void Form_KeyDown(object sender, KeyEventArgs e)
         {
-            Console.WriteLine(e.KeyValue);
+            //Console.WriteLine(e.KeyValue);
 
             if (e.KeyValue == 38)
             {
@@ -122,7 +124,8 @@ namespace CmdBash
             if ((e.KeyValue >= 65 && e.KeyValue <= 90)
                 || (e.KeyValue >= 96 && e.KeyValue <= 105)
                 || (e.Shift && e.KeyValue >= 48 && e.KeyValue <= 57)
-                || new List<int> { 8, 13, 32, 54, 106, 107, 109, 111, 187, 220 }.Contains(e.KeyValue))
+                || (!e.Shift && e.KeyValue == 223)
+                || new List<int> { 8, 13, 32, 54, 106, 107, 109, 111, 187, 188, 190, 191, 220 }.Contains(e.KeyValue))
             {
                 string v = $"{(char)e.KeyValue}";
                 if (e.KeyValue >= 96 && e.KeyValue <= 105)
@@ -133,15 +136,19 @@ namespace CmdBash
                 switch (e.KeyValue)
                 {
                     case 111: v = "/"; break;
+                    case 191: v = e.Shift ? "/" : ":"; break;
                     case 106: v = "*"; break;
                     case 109: v = "-"; break;
                     case 54: if(!e.Shift) v = "-"; break;
                     case 107: v = "+"; break;
                     case 187: v = e.Shift ? "+" : "="; break;
                     case 220: v = "*"; break;
+                    case 188: v = e.Shift ? "?" : ","; break;
+                    case 190: v = e.Shift ? "." : ";"; break;
+                    case 223: v = "!"; break;
                 }
-                
-                switch(e.KeyValue)
+
+                switch (e.KeyValue)
                 {
                     case 8:
                         if (CursorObj.X > 2)
@@ -159,9 +166,15 @@ namespace CmdBash
                             else
                                 HistoryCur++;
                             History.Add(Content[CursorObj.Y]);
-                            int nblines = Execute(Content[Content.Count - 1]) + 1;
-                            Content.Add("$ ");
-                            CursorObjNextLine(nblines);
+                            int nblines = Execute(Content[Content.Count - 1]);
+                            if (nblines > -1)
+                            {
+                                nblines += 3;
+                                Content.Add("");
+                                Content.Add($"ƒ2{UserName} ƒ4MINGW64 ƒ5{Variables.LocationFormatted}");
+                                Content.Add($"$ ");
+                                CursorObjNextLine(nblines);
+                            }
                         }
                         break;
 
@@ -179,7 +192,7 @@ namespace CmdBash
         {
             command = string.Concat(command.Skip(2));
 
-            var words = command.Split(" ").ToList();
+            var words = command.Split(" ").Distinct().ToList();
             string cmd = words.First();
             string subcmd = words.Skip(1).FirstOrDefault(x => !words[words.IndexOf(x) - 1].StartsWith("--") && !x.StartsWith("--"));
             Dictionary<string, string> args = new Dictionary<string, string>();
@@ -192,13 +205,14 @@ namespace CmdBash
                     continue;
                 }
                 
-                if (word.StartsWith("--"))
+                if (word.StartsWith("--") || word.StartsWith("-"))
                 {
+                    int dashCount = word.StartsWith("--") ? 2 : 1;
                     var key = word;
                     var idval = words.IndexOf(key) + 1;
-                    valExists = idval < words.Count && !words[idval].StartsWith("--");
+                    valExists = idval < words.Count && !words[idval].StartsWith("--") && !words[idval].StartsWith("-");
                     var value = valExists ? words[idval] : "";
-                    args[string.Concat(key.Skip(2))] = value;
+                    args[string.Concat(key.Skip(dashCount))] = value;
                 }
             }
 
@@ -206,33 +220,61 @@ namespace CmdBash
             {
                 return ShowHelp();
             }
+            if (cmd.CompareTo("clear") == 0 || cmd.CompareTo("cls") == 0)
+            {
+                Content.Clear();
+                Content.Add($"ƒ2{UserName} ƒ4MINGW64 ƒ5{Variables.LocationFormatted}");
+                Content.Add($"$ ");
+                CursorObj.Y = 1;
+                CursorObj.X = 2;
+                return -1;
+            }
 
-            if (string.IsNullOrWhiteSpace(cmd)) return 0;
-            if (string.IsNullOrWhiteSpace(subcmd)) return 0;
+            if (string.IsNullOrWhiteSpace(cmd))
+            {
+                Content.Add("Command isn't informed.");
+                return 1;
+            }
+            if (string.IsNullOrWhiteSpace(subcmd))
+            {
+                Content.Add("SubCommand isn't informed.");
+                return 1;
+            }
 
             return ExecuteCommand(cmd, subcmd, args);
         }
 
         private int ShowHelp()
         {
-            foreach(ICommand command in Commands)
-                Content.Add($"\t- {command.CommandName}");
-            return Commands.Count;
+            var cmds = Variables.Commands.Where(x => Variables.Configs.InstalledPackages.Contains(x.GetType().Name));
+            foreach(ICommand command in cmds)
+                Content.Add($"  - {command.CommandName}  :  {command.GetType().Name}");
+            return cmds.Count();
         }
 
         private int ExecuteCommand(string cmd, string subcmd, Dictionary<string, string> args)
         {
-            foreach (ICommand command in Commands)
+            var cmds = Variables.Commands.Where(x => Variables.Configs.InstalledPackages.Contains(x.GetType().Name));
+            foreach (ICommand command in cmds)
             {
-                if(command.CommandName.CompareTo(cmd) == 0 && command.SubCommands.ContainsKey(subcmd))
+                if (command.CommandName.CompareTo(cmd) == 0)
                 {
-                    List<string> output = command.SubCommands[subcmd].Invoke(args);
+                    List<string> output = new List<string>();
+                    if (new[] { "help", "-h" }.Contains(subcmd))
+                    {
+                        output = command.Help;
+                    }
+                    else if (command.SubCommands.ContainsKey(subcmd))
+                    {
+                        output = command.SubCommands[subcmd].Invoke(args);
+                    }
                     Content.AddRange(output);
                     return output.Count;
                 }
             }
 
-            return 0;
+            Content.Add("Command not found or missing package.");
+            return 1;
         }
     }
 }

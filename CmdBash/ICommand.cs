@@ -10,5 +10,7 @@ namespace CmdBash
     {
         string CommandName { get; }
         Dictionary<string, Func<Dictionary<string, string>, List<string>>> SubCommands { get; }
+
+        List<string> Help { get; }
     }
 }

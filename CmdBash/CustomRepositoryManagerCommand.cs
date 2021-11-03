@@ -11,5 +11,9 @@ namespace CmdBash
         public string CommandName => "crm";
 
         public Dictionary<string, Func<Dictionary<string, string>, List<string>>> SubCommands => new Dictionary<string, Func<Dictionary<string, string>, List<string>>>();
+
+        public List<string> Help => new List<string> {
+            "",
+        };
     }
 }
