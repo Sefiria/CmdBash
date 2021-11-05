@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -17,6 +18,8 @@ namespace CmdBash
             ["set"] = Set,
             ["ls"] = Ls,
             ["cd"] = Cd,
+            ["new"] = New,
+            ["open"] = Open,
         };
 
         public List<string> Help => new List<string> {
@@ -24,8 +27,11 @@ namespace CmdBash
             "  - set    Set current location as workspace",
             "  - ls     List current location elements",
             "  - cd     Move location in path",
+            "  - new    Create new workspace at current location",
+            "  - open    Open current directory",
             "Arguments :",
             "  --path, -p :    Relative path where to move",
+            "  --name, -n :    Name of the new workspace to create",
         };
 
         private List<string> Set(Dictionary<string, string> args)
@@ -66,6 +72,29 @@ namespace CmdBash
 
             return output;
         }
+        private List<string> New(Dictionary<string, string> args)
+        {
+            if (Variables.Location.CompareTo("~") == 0)
+                return new List<string>() { "Workspace root location not set, use 'cd' command." };
+
+            var name = args.FirstOrDefault(x => new[] { "name", "n" }.Contains(x.Key)).Value;
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return new List<string>() { "Missing name, use '--name' or '-n'." };
+            }
+
+            if (Directory.Exists(Variables.Location + name))
+                return new List<string>() { "Workspace or directory already exists." };
+
+            var tmppath = Variables.Location;
+            Directory.CreateDirectory(Variables.Location + name);
+            Variables.Location += $"{name}/";
+            File.WriteAllText(Variables.WorkspaceTokenFullName, Variables.GetDefaultWorkspaceToken(name));
+            Variables.Location = tmppath;
+
+            return new List<string>() { "Workspace successfully created." };
+        }
         private List<string> Cd(Dictionary<string, string> args)
         {
             var path = args.FirstOrDefault(x => new[] { "path", "p" }.Contains(x.Key)).Value;
@@ -80,6 +109,20 @@ namespace CmdBash
                     string node = nodes[i];
                     if (i == 0)
                     {
+                        if(nodes[0] == ".")
+                        {
+                            if (Variables.Location.Split("/", true).Length < 2)
+                            {
+                                return new List<string>
+                                {
+                                    "wm: cd: Path doesn't exists",
+                                };
+                            }
+                            var p = Variables.Location.Replace("//", "/");
+                            if (p.EndsWith("/")) p = string.Concat(p.Take(p.Length - 1));
+                            winPath = Directory.GetParent(p).FullName.Replace("\\", "/");
+                            break;
+                        }
                         if(Regex.IsMatch(string.Concat(path.Take(3)), "/./"))
                         {
                             i++;
@@ -159,6 +202,15 @@ namespace CmdBash
             }
 
             return new List<string>();
+        }
+        private List<string> Open(Dictionary<string, string> args)
+        {
+            if (Variables.Location.CompareTo("~") == 0)
+                return new List<string>() { "Path not set, please use 'cd'." };
+
+            Process.Start(Variables.Location);
+
+            return new List<string>() { "Directory successfully open." };
         }
     }
 }

@@ -49,6 +49,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Project.cs" />
+    <Compile Include="TextEditorCommand.cs" />
     <Compile Include="ICommand.cs" />
     <Compile Include="CustomRepositoryManagerCommand.cs" />
     <Compile Include="Variables.cs" />

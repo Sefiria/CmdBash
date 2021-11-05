@@ -51,6 +51,9 @@ namespace CmdBash
         public static readonly string ConfigDefaultContent = JsonConvert.SerializeObject(new Config(new List<string> { "WorkspaceManagerCommand", "PackageManagerCommand" }));
         public static Config Configs = new Config(new List<string> { "WorkspaceManagerCommand" });
         public static List<ICommand> Commands;
+        public static readonly string WorkspaceTokenFileName = ".wproj";
+        public static string WorkspaceTokenFullName => Location + WorkspaceTokenFileName;
+        public static string GetDefaultWorkspaceToken(string name) => JsonConvert.SerializeObject(new Project(name));
 
         internal static void UpdateConfigs()
         {

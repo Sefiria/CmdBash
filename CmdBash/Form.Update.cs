@@ -78,6 +78,9 @@ namespace CmdBash
         {
             CursorObj.Y += nblines;
             CursorObj.X = 2;
+
+            if (CursorObj.Y - ScrollValue < 0 || CursorObj.Y - ScrollValue > 27)
+                ScrollValue = CursorObj.Y - 27 + 3;
         }
 
         private string GetUnformattedLine(string line)
