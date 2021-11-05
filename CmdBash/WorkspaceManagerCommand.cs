@@ -39,16 +39,32 @@ namespace CmdBash
                 return new List<string>() { "Workspace loaded." };
             }
 
-            File.WriteAllText(Variables.ConfigFullName, Variables.ConfigDefaultContent);
-            Variables.Configs = JsonConvert.DeserializeObject<Variables.Config>(File.ReadAllText(Variables.ConfigFullName));
+            Variables.Configs = JsonConvert.DeserializeObject<Variables.Config>(Variables.ConfigDefaultContent);
+            Variables.UpdateConfigs();
 
             return new List<string>() { "Workspace set is successful." };
         }
         private List<string> Ls(Dictionary<string, string> args)
         {
-            
+            if (Variables.Location.CompareTo("~") == 0)
+                return new List<string>() { "Workspace location not set, use 'cd' command." };
 
-            return new List<string>();
+            List<string> directories = Directory.EnumerateDirectories(Variables.Location).ToList();
+            List<string> files = Directory.EnumerateFiles(Variables.Location).ToList();
+
+            var output = new List<string>();
+
+            foreach (var directory in directories)
+            {
+                output.Add($"- {directory}    [DIRECTORY]");
+            }
+
+            foreach (var file in files)
+            {
+                output.Add($"- {file}    [FILE]");
+            }
+
+            return output;
         }
         private List<string> Cd(Dictionary<string, string> args)
         {

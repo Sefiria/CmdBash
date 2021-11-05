@@ -119,6 +119,16 @@ namespace CmdBash
                 }
                 return;
             }
+            if (e.KeyValue == 37 && CursorObj.X > 2)
+            {
+                CursorObj.X--;
+                return;
+            }
+            if (e.KeyValue == 39 && CursorObj.X < Content[CursorObj.Y].Length)
+            {
+                CursorObj.X++;
+                return;
+            }
 
 
             if ((e.KeyValue >= 65 && e.KeyValue <= 90)
@@ -179,7 +189,10 @@ namespace CmdBash
                         break;
 
                     default:
-                        Content[Content.Count - 1] += e.Shift ? v : v.ToLower();
+                        if(CursorObj.X == Content[Content.Count - 1].Length)
+                            Content[Content.Count - 1] += e.Shift ? v : v.ToLower();
+                        else
+                            Content[Content.Count - 1] = Content[Content.Count - 1].Insert(CursorObj.X, e.Shift ? v : v.ToLower());
                         CursorObj.X++;
                         break;
                 }
