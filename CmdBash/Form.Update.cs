@@ -1,17 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
-using System.Reflection;
 
 namespace CmdBash
 {
     public partial class Form : System.Windows.Forms.Form
     {
         char TokenFormat = 'ƒ';
-        List<string> Content = new List<string>();
+        ObservableCollection<string> Content = new ObservableCollection<string>();
+        const int MaxContentLength = 64;
         List<string> History = new List<string>();
         int HistoryCur = -1;
         CursorObj CursorObj;
@@ -33,20 +35,39 @@ namespace CmdBash
                 .ToList();
 
             UserName = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
+            CursorObj = new CursorObj(0, 0);
+            Content.CollectionChanged += (object s, NotifyCollectionChangedEventArgs e) =>
+            {
+                if (e.Action == NotifyCollectionChangedAction.Add)
+                {
+                    if (CursorObj.Y - ScrollValue < 0 || CursorObj.Y - ScrollValue > 27)
+                        ScrollValue = CursorObj.Y;
+
+                    if (Content.Count > MaxContentLength)
+                    {
+                        Content.RemoveAt(0);
+                        CursorObj.Y--;
+                    }
+                }
+            };
             Content.Add($"ƒ2{UserName} ƒ4MINGW64 ƒ5{Variables.LocationFormatted}");
             Content.Add($"$ ");
+            CursorObj.X = Content[Content.Count - 1].Length;
+            CursorObj.Y = Content.Count - 1;
 
-            CursorObj = new CursorObj(Content[Content.Count - 1].Length, Content.Count - 1);
             TimerTinkCursor.Start();
         }
 
         private void Update(object sender, EventArgs e)
         {
-            List<string> content = new List<string>(Content);
-            Content.Clear();
-            foreach (string line in content)
+            if (Content.FirstOrDefault(x => x.Contains(CR)) != null)
             {
-                Content.AddRange(line.Split(new[] { CR }, StringSplitOptions.None));
+                List<string> content = new List<string>(Content);
+                Content.Clear();
+                foreach (string line in content)
+                {
+                    Content = Content.AddRange(line.Split(new[] { CR }, StringSplitOptions.None));
+                }
             }
 
             if (TimerTinkCursor.ElapsedMilliseconds >= 1000)

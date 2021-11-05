@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Windows.Forms;
 
 namespace CmdBash
 {
@@ -16,6 +17,7 @@ namespace CmdBash
         string CR = Environment.NewLine;
         int LogoSize = 16;
         float MaxLineLength;
+        int ScrollValue = 0;
 
         private void DrawInit()
         {
@@ -37,7 +39,8 @@ namespace CmdBash
 
             List<string> treat = new List<string>();
             List<string> lines = new List<string>();
-            foreach(string line in Content)
+            var c = Content.Skip(ScrollValue);
+            foreach (string line in c)
             {
                 string l = line;
                 treat.Clear();
@@ -80,33 +83,15 @@ namespace CmdBash
                         b.Color = Color.White;
                     }
                 }
-
-                /*int charCount = line.Length;
-                x = 0;
-                for(int c=0; c<charCount; c++)
-                {
-                    char @char = line[c];
-
-                    if (@char != TokenFormat)
-                    {
-                        Size sz = TextRenderer.MeasureText(g, "i", Font);
-                        g.DrawString($"{@char}", Font, b, Offset + x, Offset + l * CharSize.Height);
-                        x += CharSize.Width;
-                    }
-                    else
-                    {
-                        b.Color = GetColorFromFormat(line[++c]);
-                    }
-                }*/
             }
 
             if (TimerTinkCursor.ElapsedMilliseconds < 500)
             {
                 g.DrawLine(Pens.White,
                             Offset + CursorObj.X * CharSize.Width + 1,
-                            Offset / 2 + CursorObj.Y * CharSize.Height,
+                            Offset / 2 + (CursorObj.Y - ScrollValue) * CharSize.Height,
                             Offset + CursorObj.X * CharSize.Width + 1,
-                            (CursorObj.Y + 1) * CharSize.Height);
+                            ((CursorObj.Y - ScrollValue) + 1) * CharSize.Height);
             }
 
             Pen pen = new Pen(Color.FromArgb(80, 80, 80), 2F);
@@ -134,6 +119,16 @@ namespace CmdBash
             g_header.DrawLine(Pens.Red, btheaderXRect.X + btheaderXRect.Width, btheaderXRect.Y, btheaderXRect.X, btheaderXRect.Y + btheaderXRect.Height);
 
             Header.Image = img_header;
+        }
+
+        private void Form_MouseWheel(object sender, MouseEventArgs e)
+        {
+            ScrollValue += - e.Delta / 100;
+            var max = Content.Count + 1;
+            if (ScrollValue < 0)
+                ScrollValue = 0;
+            if (ScrollValue > max)
+                ScrollValue = max;
         }
     }
 }

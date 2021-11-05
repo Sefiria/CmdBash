@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+﻿using System.Windows.Forms;
 
 namespace CmdBash
 {
@@ -31,6 +23,7 @@ namespace CmdBash
             Header.MouseUp += OnHeaderMouseUp;
             Header.MouseMove += OnHeaderMouseMove;
             KeyDown += Form_KeyDown;
+            MouseWheel += Form_MouseWheel; ;
         }
     }
 }
