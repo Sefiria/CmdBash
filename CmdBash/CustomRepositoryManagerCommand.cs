@@ -24,46 +24,77 @@ namespace CmdBash
 
         private List<string> Push(Dictionary<string, string> args)
         {
-            if (!File.Exists(Variables.WorkspaceTokenFullName))
-                return new List<string>() { "No Workspace found at current path." };
-
-
-
-            return new List<string>() { $"Pushed." };
-        }
-        private List<string> Pull(Dictionary<string, string> args)
-        {
-            return new List<string>() { $"Pushed." };
-        }
-
-
-        private void UpdateChanges()
-        {
             string appdata = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             var remote = Path.Combine(appdata, "CmdBash");
-            if (!Directory.Exists(remote)) Directory.CreateDirectory(remote);
+            if (!Directory.Exists(remote))
+                return new List<string>() { "No remote set (any workspace), push failed." };
 
             remote = Path.Combine(new string[] { remote, string.Concat(Variables.Location.Skip(3).Take(Variables.Location.Length - 4)).Replace('/', '.') });
             if (!Directory.Exists(remote))
+                return new List<string>() { "No Workspace set, push failed." };
+
+            List<string> foldersToCreate = new List<string>();
+            List<string> foldersToRemove = new List<string>();
+            Dictionary<string, string> filesToCreate = new Dictionary<string, string>();
+            Dictionary<string, string> modifiedFiles = new Dictionary<string, string>();
+            void Compare(string _local, string _remote)
             {
-                Directory.CreateDirectory(remote);
+                var localFile = File.ReadAllText(_local);
 
-                void RecursiveCopy(string loc, string _remote)
+                if (!File.Exists(_remote))
                 {
-                    IEnumerable<string> dirs = Directory.EnumerateDirectories(loc);
-                    IEnumerable<string> files = Directory.EnumerateFiles(loc);
-
-                    foreach (var file in files)
-                        File.Copy(file, Path.Combine(_remote, Path.GetFileName(file)));
-                    foreach (var dir in dirs)
-                    {
-                        Directory.CreateDirectory(Path.Combine(_remote, Path.GetFileName(dir)));
-                        RecursiveCopy(Path.Combine(loc, dir), Path.Combine(_remote, Path.GetFileName(dir)));
-                    }
+                    filesToCreate[_remote] = localFile;
+                    return;
                 }
 
-                RecursiveCopy(Variables.Location, remote);
+                var remoteFile = File.ReadAllText(_remote);
+                if (localFile.CompareTo(remoteFile) != 0)
+                    modifiedFiles[_remote] = localFile;
             }
+
+            void RecursiveCompare(string loc, string _remote)
+            {
+                IEnumerable<string> dirs = Directory.EnumerateDirectories(loc);
+                IEnumerable<string> files = Directory.EnumerateFiles(loc);
+
+                foreach (var file in files)
+                    Compare(file, Path.Combine(_remote, Path.GetFileName(file)));
+                foreach (var dir in dirs)
+                {
+                    if (!Directory.Exists(Path.Combine(_remote, Path.GetFileName(dir))))
+                        foldersToCreate.Add(Path.Combine(_remote, Path.GetFileName(dir)));
+
+                    RecursiveCompare(Path.Combine(loc, dir), Path.Combine(_remote, Path.GetFileName(dir)));
+                }
+                if (Directory.Exists(_remote))
+                {
+                    var remoteFolders = Directory.EnumerateDirectories(_remote).ToList();
+                    remoteFolders.RemoveAll(x => dirs.Contains(x));
+                    if (remoteFolders.Count > 0)
+                        foldersToRemove.AddRange(remoteFolders);
+                }
+            }
+
+            RecursiveCompare(Variables.Location, remote);
+
+
+            foreach (var folder in foldersToCreate)
+                Directory.CreateDirectory(folder);
+            foreach (var folder in foldersToRemove)
+                Directory.Delete(folder, true);
+            foreach (var file in filesToCreate)
+                File.WriteAllText(file.Key, file.Value);
+            foreach (var file in modifiedFiles)
+                File.WriteAllText(file.Key, file.Value);
+
+            return new List<string>() {
+                $"{foldersToCreate.Count + foldersToRemove.Count} folders comitted ( ƒ2{foldersToCreate.Count} created, ƒ1{foldersToRemove.Count} removed )",
+                $"{filesToCreate.Count + modifiedFiles.Count} files comitted ( ƒ2{filesToCreate.Count} created, ƒ3{modifiedFiles.Count} overwritten, ƒ1{modifiedFiles.Count} removed )",
+                "Pushed." };
+        }
+        private List<string> Pull(Dictionary<string, string> args)
+        {
+            return new List<string>() { $"Pulled." };
         }
     }
 }
