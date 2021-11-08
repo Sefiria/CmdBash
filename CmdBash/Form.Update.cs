@@ -11,14 +11,16 @@ namespace CmdBash
 {
     public partial class Form : System.Windows.Forms.Form
     {
-        char TokenFormat = 'ƒ';
-        ObservableCollection<string> Content = new ObservableCollection<string>();
-        const int MaxContentLength = 64;
-        List<string> History = new List<string>();
-        int HistoryCur = -1;
-        CursorObj CursorObj;
-        Stopwatch TimerTinkCursor = new Stopwatch();
-        string UserName;
+        char TokenFormat => Variables.TokenFormat;
+        ObservableCollection<string> Content => Variables.Content;
+        int MaxContentLength => Variables.MaxContentLength;
+        List<string> History => Variables.History;
+        int HistoryCur => Variables.HistoryCur;
+        CursorObj CursorObj => Variables.CursorObj;
+        Stopwatch TimerTinkCursor => Variables.TimerTinkCursor;
+        string UserName => Variables.UserName;
+
+        bool NoCmdPrefix = false;
 
 
         private void UpdateInit()
@@ -27,6 +29,9 @@ namespace CmdBash
 
             Variables.Location = "~";
 
+            Variables.ClearConsole = Clear;
+            Variables.DefaultInputHandler = Variables.InputHandler = DefaultInputHandler;
+
             var type = typeof(ICommand);
             Variables.Commands = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(s => s.GetTypes())
@@ -34,8 +39,8 @@ namespace CmdBash
                 .Select(x => (ICommand)Activator.CreateInstance(x))
                 .ToList();
 
-            UserName = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
-            CursorObj = new CursorObj(0, 0);
+            Variables.UserName = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
+            Variables.CursorObj = new CursorObj(0, 0);
             Content.CollectionChanged += (object s, NotifyCollectionChangedEventArgs e) =>
             {
                 if (e.Action == NotifyCollectionChangedAction.Add)
@@ -66,7 +71,7 @@ namespace CmdBash
                 Content.Clear();
                 foreach (string line in content)
                 {
-                    Content = Content.AddRange(line.Split(new[] { CR }, StringSplitOptions.None));
+                    Variables.Content = Content.AddRange(line.Split(new[] { CR }, StringSplitOptions.None));
                 }
             }
 
@@ -121,14 +126,19 @@ namespace CmdBash
 
         private void Form_KeyDown(object sender, KeyEventArgs e)
         {
+            Variables.InputHandler.Invoke(e);
+            TimerTinkCursor.Restart();
+        }
+        private void DefaultInputHandler(KeyEventArgs e)
+        {
             //Console.WriteLine(e.KeyValue);
 
             if (e.KeyValue == 38)
             {
-                if(History.Count > 0 && HistoryCur >= 0 && HistoryCur < History.Count)
+                if (History.Count > 0 && HistoryCur >= 0 && HistoryCur < History.Count)
                 {
-                    Content[CursorObj.Y] = History[HistoryCur--];
-                    if (HistoryCur < 0) HistoryCur = 0;
+                    Content[CursorObj.Y] = History[Variables.HistoryCur--];
+                    if (HistoryCur < 0) Variables.HistoryCur = 0;
                     CursorObj.X = Content[CursorObj.Y].Length;
                 }
                 return;
@@ -137,8 +147,8 @@ namespace CmdBash
             {
                 if (History.Count > 0 && HistoryCur >= 0 && HistoryCur < History.Count)
                 {
-                    Content[CursorObj.Y] = History[HistoryCur++];
-                    if (HistoryCur >= History.Count) HistoryCur = History.Count - 1;
+                    Content[CursorObj.Y] = History[Variables.HistoryCur++];
+                    if (HistoryCur >= History.Count) Variables.HistoryCur = History.Count - 1;
                     CursorObj.X = Content[CursorObj.Y].Length;
                 }
                 return;
@@ -173,7 +183,7 @@ namespace CmdBash
                     case 191: v = e.Shift ? "/" : ":"; break;
                     case 106: v = "*"; break;
                     case 109: v = "-"; break;
-                    case 54: if(!e.Shift) v = "-"; break;
+                    case 54: if (!e.Shift) v = "-"; break;
                     case 107: v = "+"; break;
                     case 187: v = e.Shift ? "+" : "="; break;
                     case 220: v = "*"; break;
@@ -198,10 +208,10 @@ namespace CmdBash
                             if (History.Count > 10)
                                 History.RemoveAt(0);
                             else
-                                HistoryCur++;
+                                Variables.HistoryCur++;
                             History.Add(Content[CursorObj.Y]);
                             int nblines = Execute(Content[Content.Count - 1]);
-                            if (nblines > -1)
+                            if (nblines > -1 && !NoCmdPrefix)
                             {
                                 nblines += 3;
                                 Content.Add("");
@@ -209,19 +219,18 @@ namespace CmdBash
                                 Content.Add($"$ ");
                                 CursorObjNextLine(nblines);
                             }
+                            NoCmdPrefix = false;
                         }
                         break;
 
                     default:
-                        if(CursorObj.X == Content[Content.Count - 1].Length)
+                        if (CursorObj.X == Content[Content.Count - 1].Length)
                             Content[Content.Count - 1] += e.Shift ? v : v.ToLower();
                         else
                             Content[Content.Count - 1] = Content[Content.Count - 1].Insert(CursorObj.X, e.Shift ? v : v.ToLower());
                         CursorObj.X++;
                         break;
                 }
-
-                TimerTinkCursor.Restart();
             }
         }
 
@@ -259,11 +268,7 @@ namespace CmdBash
             }
             if (cmd.CompareTo("clear") == 0 || cmd.CompareTo("cls") == 0)
             {
-                Content.Clear();
-                Content.Add($"ƒ2{UserName} ƒ4MINGW64 ƒ5{Variables.LocationFormatted}");
-                Content.Add($"$ ");
-                CursorObj.Y = 1;
-                CursorObj.X = 2;
+                Clear();
                 return -1;
             }
 
@@ -279,6 +284,15 @@ namespace CmdBash
             }
 
             return ExecuteCommand(cmd, subcmd, args);
+        }
+
+        private void Clear()
+        {
+            Content.Clear();
+            Content.Add($"ƒ2{UserName} ƒ4MINGW64 ƒ5{Variables.LocationFormatted}");
+            Content.Add($"$ ");
+            CursorObj.Y = 1;
+            CursorObj.X = 2;
         }
 
         private int ShowHelp()
@@ -305,7 +319,9 @@ namespace CmdBash
                     {
                         output = command.SubCommands[subcmd].Invoke(args);
                     }
-                    Content.AddRange(output);
+                    NoCmdPrefix = output.Count == 1 && output[0].CompareTo(Variables.NoCmdPrefixToken) == 0;
+                    if(!NoCmdPrefix)
+                        Content.AddRange(output);
                     return output.Count;
                 }
             }

@@ -32,6 +32,7 @@ namespace CmdBash
             "Arguments :",
             "  --path, -p :    Relative path where to move",
             "  --name, -n :    Name of the new workspace to create",
+            "  --type, -t :    Type of item to create : workspace/project/folder",
         };
 
         private List<string> Set(Dictionary<string, string> args)
@@ -42,7 +43,8 @@ namespace CmdBash
             if (File.Exists(Variables.ConfigFullName))
             {
                 Variables.Configs = JsonConvert.DeserializeObject<Variables.Config>(File.ReadAllText(Variables.ConfigFullName));
-                return new List<string>() { "Workspace loaded." };
+                Variables.UpdateConfigs();
+                return new List<string>() { "Workspace loaded / updated." };
             }
 
             Variables.Configs = JsonConvert.DeserializeObject<Variables.Config>(Variables.ConfigDefaultContent);
@@ -50,6 +52,36 @@ namespace CmdBash
 
             return new List<string>() { "Workspace set is successful." };
         }
+
+        private void CreateRemote()
+        {
+            string appdata = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var remote = Path.Combine(appdata, "CmdBash");
+            if (!Directory.Exists(remote)) Directory.CreateDirectory(remote);
+
+            remote = Path.Combine(new string[]{ remote, string.Concat(Variables.Location.Skip(3).Take(Variables.Location.Length-4)).Replace('/', '.') });
+            if (!Directory.Exists(remote))
+            {
+                Directory.CreateDirectory(remote);
+
+                void RecursiveCopy(string loc, string _remote)
+                {
+                    IEnumerable<string> dirs = Directory.EnumerateDirectories(loc);
+                    IEnumerable<string> files = Directory.EnumerateFiles(loc);
+
+                    foreach (var file in files)
+                        File.Copy(file, Path.Combine(_remote, Path.GetFileName(file)));
+                    foreach (var dir in dirs)
+                    {
+                        Directory.CreateDirectory(Path.Combine(_remote, Path.GetFileName(dir)));
+                        RecursiveCopy(Path.Combine(loc, dir), Path.Combine(_remote, Path.GetFileName(dir)));
+                    }
+                }
+
+                RecursiveCopy(Variables.Location, remote);
+            }
+        }
+
         private List<string> Ls(Dictionary<string, string> args)
         {
             if (Variables.Location.CompareTo("~") == 0)
@@ -78,22 +110,35 @@ namespace CmdBash
                 return new List<string>() { "Workspace root location not set, use 'cd' command." };
 
             var name = args.FirstOrDefault(x => new[] { "name", "n" }.Contains(x.Key)).Value;
+            var type = args.FirstOrDefault(x => new[] { "type", "t" }.Contains(x.Key)).Value;
 
             if (string.IsNullOrWhiteSpace(name))
-            {
                 return new List<string>() { "Missing name, use '--name' or '-n'." };
+            if (string.IsNullOrWhiteSpace(type))
+                return new List<string>() { "Missing type, use '--type' or '-t'." };
+            if (!new string[]{ "workspace", "project", "folder" }.Contains(type))
+                return new List<string>() { "Type no found, set workspace/project/folder." };
+            if (Directory.Exists(Variables.Location + name))
+                return new List<string>() { "Workspace/project/folder already exists." };
+
+            Directory.CreateDirectory(Variables.Location + name);
+
+            if (type == "project")
+            {
+                var tempdir = Variables.Location;
+                Variables.Location += $"{name}/";
+                File.WriteAllText(Variables.WorkspaceTokenFullName, Variables.GetDefaultWorkspaceToken(name));
+                Variables.Location = tempdir;
+
             }
 
-            if (Directory.Exists(Variables.Location + name))
-                return new List<string>() { "Workspace or directory already exists." };
+            if (type == "workspace")
+            {
+                Variables.Location += $"{name}/";
+                CreateRemote();
+            }
 
-            var tmppath = Variables.Location;
-            Directory.CreateDirectory(Variables.Location + name);
-            Variables.Location += $"{name}/";
-            File.WriteAllText(Variables.WorkspaceTokenFullName, Variables.GetDefaultWorkspaceToken(name));
-            Variables.Location = tmppath;
-
-            return new List<string>() { "Workspace successfully created." };
+            return new List<string>() { $"{type[0].ToString().ToUpper() + type.Substring(1)} successfully created." };
         }
         private List<string> Cd(Dictionary<string, string> args)
         {
@@ -106,10 +151,10 @@ namespace CmdBash
                 bool pathDoesntExists = false;
                 for(int i=0; i<nodes.Length; i++)
                 {
-                    string node = nodes[i];
+                    string node = nodes[i].Replace($"{0}", "") ;
                     if (i == 0)
                     {
-                        if(nodes[0] == ".")
+                        if(nodes[0].Replace(".", "") == "")
                         {
                             if (Variables.Location.Split("/", true).Length < 2)
                             {

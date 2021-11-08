@@ -2,11 +2,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace CmdBash
 {
@@ -30,7 +32,7 @@ namespace CmdBash
 
             private void InstalledPackages_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
             {
-                UpdateConfigs();
+                UpdateConfigs(e.NewItems);
             }
         }
 
@@ -54,10 +56,30 @@ namespace CmdBash
         public static readonly string WorkspaceTokenFileName = ".wproj";
         public static string WorkspaceTokenFullName => Location + WorkspaceTokenFileName;
         public static string GetDefaultWorkspaceToken(string name) => JsonConvert.SerializeObject(new Project(name));
+        public static string NoCmdPrefixToken = "¤";
+        internal static Action ClearConsole = null;
+        public static Action<KeyEventArgs> DefaultInputHandler = null;
+        public static Action<KeyEventArgs> InputHandler = null;
 
-        internal static void UpdateConfigs()
+        internal static void UpdateConfigs(System.Collections.IList items = null)
         {
-            File.WriteAllText(ConfigFullName, JsonConvert.SerializeObject(Configs));
+            if(items == null)
+                File.WriteAllText(ConfigFullName, JsonConvert.SerializeObject(Configs));
+            else
+                File.WriteAllText(ConfigFullName, JsonConvert.SerializeObject(new Config(items.Cast<string>().ToList())));
         }
+
+
+
+
+
+        internal static char TokenFormat = 'ƒ';
+        internal static ObservableCollection<string> Content = new ObservableCollection<string>();
+        internal static readonly int MaxContentLength = 64;
+        internal static List<string> History = new List<string>();
+        internal static int HistoryCur = -1;
+        internal static CursorObj CursorObj;
+        internal static Stopwatch TimerTinkCursor = new Stopwatch();
+        internal static string UserName;
     }
 }
