@@ -33,6 +33,28 @@ namespace CmdBash
             if (!Directory.Exists(remote))
                 return new List<string>() { "No Workspace set, push failed." };
 
+            var result = DoChanges(Variables.Location, remote);
+            result.Add("Pushed.");
+            return result;
+        }
+        private List<string> Pull(Dictionary<string, string> args)
+        {
+            string appdata = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var remote = Path.Combine(appdata, "CmdBash");
+            if (!Directory.Exists(remote))
+                return new List<string>() { "No remote set (any workspace), push failed." };
+
+            remote = Path.Combine(new string[] { remote, string.Concat(Variables.Location.Skip(3).Take(Variables.Location.Length - 4)).Replace('/', '.') });
+            if (!Directory.Exists(remote))
+                return new List<string>() { "No Workspace set, push failed." };
+
+            var result = DoChanges(remote, Variables.Location);
+            result.Add("Pulled.");
+            return result;
+        }
+
+        private List<string> DoChanges(string local, string remote)
+        {
             List<string> foldersToCreate = new List<string>();
             List<string> foldersToRemove = new List<string>();
             Dictionary<string, string> filesToCreate = new Dictionary<string, string>();
@@ -75,7 +97,7 @@ namespace CmdBash
                 }
             }
 
-            RecursiveCompare(Variables.Location, remote);
+            RecursiveCompare(local, remote);
 
 
             foreach (var folder in foldersToCreate)
@@ -89,12 +111,7 @@ namespace CmdBash
 
             return new List<string>() {
                 $"{foldersToCreate.Count + foldersToRemove.Count} folders comitted ( ƒ2{foldersToCreate.Count} created, ƒ1{foldersToRemove.Count} removed )",
-                $"{filesToCreate.Count + modifiedFiles.Count} files comitted ( ƒ2{filesToCreate.Count} created, ƒ3{modifiedFiles.Count} overwritten, ƒ1{modifiedFiles.Count} removed )",
-                "Pushed." };
-        }
-        private List<string> Pull(Dictionary<string, string> args)
-        {
-            return new List<string>() { $"Pulled." };
+                $"{filesToCreate.Count + modifiedFiles.Count} files comitted ( ƒ2{filesToCreate.Count} created, ƒ3{modifiedFiles.Count} overwritten, ƒ1{modifiedFiles.Count} removed )" };
         }
     }
 }
